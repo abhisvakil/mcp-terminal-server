@@ -1,103 +1,113 @@
-# Containerized MCP Terminal Server 🚀
+# Terminal Server - MCP Component
 
-## Why Containerize Your MCP Server?
+This is the core MCP server component that enables Claude AI to execute terminal commands in a controlled environment.
 
-Containerization is a cornerstone of modern DevOps and AI workflows. By packaging your Model Context Protocol (MCP) server in Docker, you gain:
+## 🎯 Purpose
 
-- **Portability:** Run your server anywhere—locally, in the cloud, or in CI/CD pipelines.
-- **Reproducibility:** Eliminate "works on my machine" issues with consistent environments.
-- **Isolation:** Keep dependencies and runtime separate from your host system.
-- **Security:** Limit access to only what the container needs.
-- **Scalability:** Easily scale up with Docker Compose, Kubernetes, or cloud services.
+The Terminal Server provides a secure bridge between Claude AI and your local terminal, allowing the AI to:
+- Execute shell commands in an isolated workspace
+- Manage files and directories
+- Run development tools and scripts
+- Install packages and dependencies
 
----
+## 🏗️ Architecture
 
-## 🏗️ Project Structure
+```python
+from mcp.server.fastmcp import FastMCP
 
-```
-mcp-terminal-server-docker/
-├── terminal_server/
-│   ├── Dockerfile           # Docker build instructions
-│   ├── terminal_server.py   # Main MCP server code
-│   ├── requirements.txt     # Python dependencies
-│   └── ...                  # Other server files
-├── README.md                # This file
-├── LICENSE                  # License file
+mcp = FastMCP("Terminal")
+
+@mcp.tool()
+async def run_command(command: str) -> str:
+    # Executes terminal commands and returns output
 ```
 
----
+## 🔧 Implementation Details
 
-## 🚀 Quick Start: Run Your MCP Server in Docker
+### Key Features
 
-### 1. **Build the Docker Image**
+1. **Tool Definition**: Uses the `@mcp.tool()` decorator to expose the `run_command` function to Claude
+2. **Isolated Execution**: All commands run in `~/mcp/workspace` directory
+3. **Error Handling**: Comprehensive error capture and reporting
+4. **Output Capture**: Captures both stdout and stderr from commands
+
+### Security Considerations
+
+- **Controlled Workspace**: Commands only execute in the designated workspace directory
+- **No System Access**: Cannot access your entire filesystem
+- **Error Isolation**: Errors are caught and returned safely without crashing the server
+
+### Command Execution Flow
+
+1. Claude sends a command request via MCP protocol
+2. Server receives the command and validates it
+3. Command is executed in the workspace directory using `subprocess.run()`
+4. Output (stdout + stderr) is captured and returned to Claude
+5. Any errors are caught and returned as error messages
+
+## 🚀 Usage
+
+### Basic Command Execution
+
+```python
+# Claude can call this function with any shell command
+result = await run_command("ls -la")
+result = await run_command("mkdir new_project")
+result = await run_command("pip install requests")
+```
+
+### Error Handling
+
+The server handles various error scenarios:
+- Command not found
+- Permission errors
+- Invalid arguments
+- System errors
+
+All errors are captured and returned as informative error messages.
+
+## 📦 Dependencies
+
+- `mcp>=1.0.0` - Model Context Protocol library
+- `fastmcp` - FastMCP framework for building MCP servers
+
+## 🧪 Testing
+
+Test the server:
 
 ```bash
-cd terminal_server
-# Build the Docker image (name it as you like)
-docker build -t terminal_server_docker .
+# Test import
+python -c "import terminal_server; print('Server imports successfully')"
+
+# Test basic functionality
+python -c "
+import asyncio
+import terminal_server
+
+async def test():
+    result = await terminal_server.run_command('echo \"Hello MCP!\"')
+    print(result)
+
+asyncio.run(test())
+"
 ```
 
-### 2. **Run the MCP Server in a Container**
+## 🔒 Security Notes
 
-```bash
-docker run -i --rm --init \
-  -e DOCKER_CONTAINER=true \
-  -v /Users/yourusername/mcp/workspace:/root/mcp/workspace \
-  terminal_server_docker
-```
-- Replace `/Users/yourusername/mcp/workspace` with your actual workspace path.
-- The `-i` flag keeps stdin open for stdio transport (required for Claude Desktop integration).
+- All commands run in the isolated workspace directory
+- No direct filesystem access outside the workspace
+- Commands are executed with the same permissions as the user running the server
+- Consider implementing additional command validation if needed
 
----
+## 🚀 Future Enhancements
 
-## 🖥️ Integrate with Claude Desktop
-
-1. **Edit your Claude Desktop config** (usually at `~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "terminal_server": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "--init",
-        "-e", "DOCKER_CONTAINER=true",
-        "-v", "/Users/yourusername/mcp/workspace:/root/mcp/workspace",
-        "terminal_server_docker"
-      ]
-    }
-  }
-}
-```
-- Make sure the volume path matches your actual user directory.
-- Save and **restart Claude Desktop**.
+Potential improvements:
+- Command whitelisting/blacklisting
+- Resource usage limits
+- Command history logging
+- Additional tools for file operations
+- Integration with version control systems
 
 ---
 
-## 🛠️ Best Practices for Containerized AI Tooling
-
-- **Environment Variables:** Use `-e` flags for secrets, API keys, or config.
-- **Minimal Images:** Use slim Python images and only install what you need.
-- **Volume Mounts:** Only mount directories you want the container to access.
-- **Logs & Debugging:** Use `docker logs` and check Claude logs for troubleshooting.
-- **CI/CD:** Add Docker build and push steps to your pipeline for automated deployments.
-
----
-
-## 📚 Learn More
-- [Docker Documentation](https://docs.docker.com/)
-- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
-- [Claude Desktop MCP Guide](https://docs.anthropic.com/claude/docs/model-context-protocol-mcp)
-
----
-
-## 📝 License
-
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-**Containerization is the future of AI tool orchestration. By running your MCP server in Docker, you ensure reliability, security, and scalability for all your AI-powered workflows.** 
+**Part of the MCP Terminal Server Project** | **Built with FastMCP**
